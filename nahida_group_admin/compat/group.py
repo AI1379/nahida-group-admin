@@ -59,3 +59,35 @@ async def set_special_title(
         f"set_special_title 暂不支持当前适配器："
         f"{type(bot).__module__}.{type(bot).__qualname__}"
     )
+
+
+async def mute_group_member(
+    bot: "Bot", *, group_id: int, user_id: int, duration: int
+) -> None:
+    """禁言群成员；``duration`` 为秒数，``0`` 表示解除禁言。
+
+    注意：禁言权限要求视 QQ 群角色而定（管理员/群主）。
+    """
+    if isinstance(bot, OneBotV11Bot):
+        await bot.set_group_ban(
+            group_id=int(group_id),
+            user_id=int(user_id),
+            duration=int(duration),
+        )
+        return
+
+    milky_cls = _milky_bot_cls()
+    if milky_cls is not None and isinstance(bot, milky_cls):
+        # TODO(milky): 与 nonebot-adapter-milky 源码核对动作名与参数命名。
+        await bot.call_api(
+            "mute_group_member",
+            group_id=int(group_id),
+            user_id=int(user_id),
+            duration=int(duration),
+        )
+        return
+
+    raise NotImplementedError(
+        f"mute_group_member 暂不支持当前适配器："
+        f"{type(bot).__module__}.{type(bot).__qualname__}"
+    )
