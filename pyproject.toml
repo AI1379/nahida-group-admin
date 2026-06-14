@@ -1,0 +1,14 @@
+[project]
+name = "nahida-group-admin"
+version = "0.1.0"
+description = "一个兼容 Milky 与 OneBot 的 QQ 群管理机器人"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "nonebot2[fastapi,httpx,websockets]>=2.3.0",
+    "nonebot-adapter-onebot>=2.4.0",
+]
+
+[project.optional-dependencies]
+# Milky 为次要后端，按需安装：uv sync --extra milky
+milky = ["nonebot-adapter-milky>=1.2.0"]
