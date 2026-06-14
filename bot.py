@@ -22,6 +22,9 @@ def main() -> None:
     else:
         driver.register_adapter(MilkyAdapter)
 
+    # 注册全局群聊白名单钩子（导入即生效，对所有 matcher 与后端适配器生效）
+    import nahida_group_admin.common.whitelist  # noqa: F401
+
     # 加载功能插件
     nonebot.load_plugin("nahida_group_admin.plugins.title")
     nonebot.load_plugin("nahida_group_admin.plugins.mute")

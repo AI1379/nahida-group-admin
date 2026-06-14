@@ -116,6 +116,10 @@ COMMAND_START=["/"]
 # 超级用户（后续入群审批等授权功能会用到），填 QQ 号字符串
 SUPERUSERS=[]
 
+# 群聊白名单（全局）：为空表示不限制、放行所有群；
+# 配置群号后，只有列表中的群才会启用所有功能，其余群的所有命令/消息/通知一律忽略
+GROUP_WHITELIST=[]
+
 # OneBot 11 协议端的 access token（如已设置）
 ONEBOT_ACCESS_TOKEN=
 
@@ -178,6 +182,8 @@ uv run python bot.py
 ```
 bot.py                           # 启动入口：init → 注册适配器 → 加载插件 → run
 nahida_group_admin/
+├── common/
+│   └── whitelist.py             # 🛡️ 全局群聊白名单（event_preprocessor）
 ├── compat/
 │   └── group.py                 # 跨适配器的群管理能力门面（按 Bot 类型分发）
 └── plugins/
