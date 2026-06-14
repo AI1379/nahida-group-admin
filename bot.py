@@ -25,6 +25,7 @@ def main() -> None:
     # 加载功能插件
     nonebot.load_plugin("nahida_group_admin.plugins.title")
     nonebot.load_plugin("nahida_group_admin.plugins.mute")
+    nonebot.load_plugin("nahida_group_admin.plugins.interaction")
 
     nonebot.run()
 

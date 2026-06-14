@@ -201,5 +201,6 @@ nahida_group_admin/
 - [OneBot 11](https://github.com/botuniverse/onebot-11) — 广泛使用的 QQ 机器人通信协议
 - [Milky](https://milky.ntqqrev.org/) — 新一代 QQ 机器人应用接口标准
 - [NapCat](https://github.com/NapNeko/NapCatQQ)、[Lagrange.Core](https://github.com/LagrangeDev/Lagrange.Core) — 优秀的协议端实现
+- [QQ 机器人官方表情对象文档](https://bot.q.qq.com/wiki/develop/api-v2/openapi/emoji/model.html) — QQ 表情 ID 完整列表
 
 > 项目名取自《原神》中的草神 **纳西妲（Nahida）**——智慧与知识之神，愿她也能照看好你的群聊。 🌿
