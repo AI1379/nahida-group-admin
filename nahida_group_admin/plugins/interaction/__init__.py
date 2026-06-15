@@ -42,10 +42,13 @@ async def handle_poke(bot: Bot, event: PokeNotifyEvent) -> None:
 
     target_id = event.target_id
     sender_id = event.user_id
+    logger.info("收到戳一戳事件")
 
     # 只在机器人被戳时回应
-    if target_id != bot.self_id:
+    if str(target_id) != str(bot.self_id):
         return
+
+    logger.info("被戳对象为 Bot")
 
     # 群聊戳回去
     try:
@@ -55,7 +58,7 @@ async def handle_poke(bot: Bot, event: PokeNotifyEvent) -> None:
             user_id=sender_id,
         )
     except Exception:
-        pass  # 失败时忽略
+        logger.warning("群聊戳一戳 API 调用失败")
 
 
 # ── 关键词互动 ──
@@ -93,7 +96,11 @@ async def handle_message(
             )
             return
         except Exception as e:
-            logger.debug(f"贴表情回应失败，回退为发送表情消息：{e}")
+            logger.warning(
+                f"贴表情回应失败，回退为发送表情消息 | "
+                f"msg_id={message_id} group={group_id} emoji={reaction!r} "
+                f"err={type(e).__name__}: {e}"
+            )
 
     # 回退：直接发送表情
     if isinstance(reaction, int):
