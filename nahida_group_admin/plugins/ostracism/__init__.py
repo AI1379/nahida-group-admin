@@ -1,7 +1,7 @@
 """陶片放逐：借鉴古雅典「陶片放逐制」的群内投票踢人机制。
 
 - 管理员发起投票，指定要放逐的人
-- 群成员通过回复消息并贴特定表情投票
+- 群成员对 bot 发出的通知消息贴「表情回应」投票（群表情回应功能）
 - 达到票数阈值后自动踢出群聊
 """
 
@@ -14,7 +14,6 @@ from nonebot.adapters.onebot.v11 import (
     Bot,
     GroupMessageEvent,
     Message,
-    MessageEvent,
     MessageSegment,
 )
 from nonebot.adapters.onebot.v11.exception import ActionFailed
@@ -35,8 +34,8 @@ __plugin_meta__ = PluginMetadata(
 
 流程 / Process:
   1. 管理员发起投票
-  2. Bot 发送投票通知，注明需贴的表情
-  3. 成员回复 Bot 消息并贴投票表情参与投票
+  2. Bot 发送投票通知，注明需贴的表情回应
+  3. 成员对该通知消息贴「表情回应」参与投票（群表情回应功能）
   4. 达到阈值后自动踢出
 
 配置 / Config:
@@ -172,7 +171,7 @@ async def handle_ostracism(
         f"发起人：{MessageSegment.at(initiator_id)}\n"
         f"所需票数：{threshold_desc}\n"
         f"有效时间：{config.window_minutes} 分钟\n\n"
-        f"请回复本消息并贴 {vote_emoji_display} 表情投票！"
+        f"请对本条消息贴 {vote_emoji_display} 表情回应参与投票！"
     )
 
     try:
@@ -194,103 +193,83 @@ async def handle_ostracism(
     )
     _active_sessions[message_id] = session
 
-    await ostracism_cmd.finish(f"已发起陶片放逐投票，请回复投票通知并贴 {vote_emoji_display} 表情～")
+    await ostracism_cmd.finish(f"已发起陶片放逐投票，请对通知消息贴 {vote_emoji_display} 表情回应投票～")
 
 
-# 监听消息，检测投票
-from nonebot import on_message
+# 监听通知事件，检测「表情回应」投票（NapCat/LLOneBot 扩展：group_msg_emoji_like）
+from nonebot import on_notice
 
-vote_handler = on_message(block=False)
+vote_notice = on_notice(block=False)
+
+# NapCat 群消息表情回应事件的 notice_type
+_EMOJI_LIKE_NOTICE_TYPE = "group_msg_emoji_like"
 
 
-@vote_handler.handle()
-async def handle_vote(bot: Bot, event: GroupMessageEvent) -> None:
-    """处理投票消息。"""
+@vote_notice.handle()
+async def handle_reaction_vote(bot: Bot, event) -> None:  # noqa: ANN001 - NoneBot 依赖注入
+    """处理表情回应投票：成员对通知消息贴投票表情即记一票。"""
     if not config.enabled:
         return
 
-    # 检查是否为回复消息
-    reply = event.reply
-    if not reply:
+    # 仅处理群消息表情回应事件（NoneBot 适配器无该模型，会回退为基类 NoticeEvent）
+    if getattr(event, "notice_type", None) != _EMOJI_LIKE_NOTICE_TYPE:
         return
 
-    reply_message_id = reply.message_id
-
-    # 检查是否为对放逐通知的回复
-    session = _active_sessions.get(reply_message_id)
+    message_id = getattr(event, "message_id", None)
+    session = _active_sessions.get(message_id)
     if not session:
         return
 
-    # 检查会话是否超时
+    # 会话超时则清理
     if session.is_expired():
-        del _active_sessions[reply_message_id]
+        _active_sessions.pop(message_id, None)
         return
 
-    # 检查是否为同一群
-    if event.group_id != session.group_id:
+    reactor_id = getattr(event, "user_id", None)
+    reacted_emoji_id = str(getattr(event, "emoji_id", ""))
+
+    # 首次收到时打印原始字段，便于在真实 NapCat 上核对 emoji_id 格式
+    logger.debug(
+        f"收到表情回应：msg={message_id} user={reactor_id} "
+        f"emoji_id={reacted_emoji_id!r}（期望 {str(config.vote_emoji)!r}）"
+    )
+
+    # 表情必须与配置的投票表情一致
+    if reacted_emoji_id != str(config.vote_emoji):
         return
 
-    # 检查是否已投过票
-    if event.user_id in session.voters:
+    # 目标本人不能为自己投票；同一人只计一次
+    if reactor_id is None or reactor_id == session.target_user_id:
+        return
+    if reactor_id in session.voters:
         return
 
-    # 不能重复投给自己
-    if event.user_id == session.target_user_id:
-        return
-
-    # 检查消息是否包含投票表情
-    has_vote_emoji = False
-    if isinstance(config.vote_emoji, int):
-        # QQ face ID：检查是否有对应 face 段
-        has_vote_emoji = any(
-            seg.type == "face" and int(seg.data.get("id", 0)) == config.vote_emoji
-            for seg in event.get_message()
-        )
-    else:
-        # Unicode emoji：检查文本是否包含
-        has_vote_emoji = config.vote_emoji in event.get_plaintext()
-
-    if not has_vote_emoji:
-        return
-
-    # 记录投票
-    session.voters.add(event.user_id)
+    session.voters.add(reactor_id)
     current_votes = len(session.voters)
 
-    # 检查是否达到阈值
+    # 达到阈值：踢人
     if session.should_kick():
-        # 移除会话
-        del _active_sessions[reply_message_id]
-
-        # 踢人
+        _active_sessions.pop(message_id, None)
         try:
-            # 使用禁言 API 的特殊形式：duration = 0 表示移出群？
-            # 实际上 OneBot V11 没有 "kick" API，需要用 set_group_kick
             await bot.call_api(
                 "set_group_kick",
                 group_id=session.group_id,
                 user_id=session.target_user_id,
                 reject_add_request=False,
             )
-
-            await bot.send(
-                event,
-                f"陶片放逐成功！{MessageSegment.at(session.target_user_id)} 已被踢出群聊（{current_votes} 票）🏺",
+            await bot.send_group_msg(
+                group_id=session.group_id,
+                message=Message(
+                    f"陶片放逐成功！{MessageSegment.at(session.target_user_id)} "
+                    f"已被踢出群聊（{current_votes} 票）🏺"
+                ),
             )
         except ActionFailed as e:
-            logger.warning(f"踢人失败（group={session.group_id}, user={session.target_user_id}）：{e}")
-            await bot.send(
-                event,
-                f"踢人失败：我可能没有足够权限（需管理员/群主）😢（已获得 {current_votes} 票）",
+            logger.warning(
+                f"踢人失败（group={session.group_id}, user={session.target_user_id}）：{e}"
             )
-    else:
-        # 更新投票进度（可选：回复提示）
-        remaining = session.threshold - current_votes
-        if remaining <= 3:  # 接近阈值时提示
-            try:
-                await bot.send(
-                    event,
-                    f"当前票数：{current_votes}/{session.threshold}，还需 {remaining} 票",
-                )
-            except ActionFailed:
-                pass
+            await bot.send_group_msg(
+                group_id=session.group_id,
+                message=f"踢人失败：我可能没有足够权限（需管理员/群主）😢（已获得 {current_votes} 票）",
+            )
+

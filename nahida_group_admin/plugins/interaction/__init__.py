@@ -1,27 +1,29 @@
-"""互动功能：戳一戳回应 + 关键词表情回复。
+"""互动功能：戳一戳回应 + 关键词表情回应。
 
 - 戳一戳：被戳时戳回去
-- 关键词：匹配关键词时回复随机表情
+- 关键词：匹配关键词时对这条消息贴「表情回应」（群表情回应，而非回复一条表情消息）
 """
 
 import random
 
-from nonebot import get_plugin_config, on_command, on_notice
-from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent
+from nonebot import get_plugin_config, on_notice, logger, on_message
+from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent, MessageSegment
 from nonebot.adapters.onebot.v11.event import PokeNotifyEvent
 from nonebot.plugin import PluginMetadata
+
+from nahida_group_admin.compat import react_to_message
 
 from .config import InteractionConfig
 
 __plugin_meta__ = PluginMetadata(
     name="互动 / Interaction",
-    description="戳一戳回应与关键词表情回复。Poke back when poked, reply with emoji on keywords.",
+    description="戳一戳回应与关键词表情回应。Poke back when poked, react with emoji on keywords.",
     usage="""功能 / Features:
   - 戳一戳回应：被戳时自动戳回去
-  - 关键词互动：消息包含关键词时回复随机表情
+  - 关键词互动：消息包含关键词时，对该消息贴「表情回应」（群表情回应）
 
-关键词 / Keywords: 在吗、在不在、你好、晚安、早安、午安、 Evening 等
-表情 / Emojis: 随机从预设列表中选择""",
+关键词 / Keywords: 在吗、在不在、你好、晚安、早安、午安 等
+表情 / Reactions: 从配置列表随机选择（支持 Unicode emoji 或 QQ face ID）""",
     config=InteractionConfig,
 )
 
@@ -60,8 +62,6 @@ async def handle_poke(bot: Bot, event: PokeNotifyEvent) -> None:
 # ── 关键词互动 ──
 
 
-from nonebot import on_message
-
 keyword_msg = on_message(block=False)
 
 
@@ -70,7 +70,7 @@ async def handle_message(
     bot: Bot,
     event: GroupMessageEvent | MessageEvent,
 ) -> None:
-    """消息处理：包含关键词时回复随机表情。"""
+    """消息处理：包含关键词时对该消息贴「表情回应」。"""
     if not config.keyword_enabled:
         return
 
@@ -80,10 +80,23 @@ async def handle_message(
     if not any(kw in text for kw in config.keywords):
         return
 
-    # 随机选择反应
+    # 随机选择反应（str 为 Unicode emoji，int 为 QQ face ID）
     reaction = random.choice(config.reactions)
 
-    # 区分类型：str 是 Unicode emoji，int 是 QQ face ID
+    group_id = getattr(event, "group_id", None)
+    message_id = getattr(event, "message_id", None)
+
+    # 群聊：贴表情回应；私聊（无 group_id）或不支持时，回退为发送表情消息
+    if group_id is not None and message_id is not None:
+        try:
+            await react_to_message(
+                bot, group_id=group_id, message_id=message_id, emoji=reaction
+            )
+            return
+        except Exception as e:
+            logger.debug(f"贴表情回应失败，回退为发送表情消息：{e}")
+
+    # 回退：直接发送表情
     if isinstance(reaction, int):
         await bot.send(event, MessageSegment.face(reaction))
     else:

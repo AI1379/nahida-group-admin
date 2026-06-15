@@ -91,3 +91,45 @@ async def mute_group_member(
         f"mute_group_member 暂不支持当前适配器："
         f"{type(bot).__module__}.{type(bot).__qualname__}"
     )
+
+
+async def react_to_message(
+    bot: "Bot", *, group_id: int, message_id: int, emoji: str | int
+) -> None:
+    """对一条消息贴「表情回应」（QQ 群表情回应功能，区别于发送一条表情消息）。
+
+    - ``emoji`` 为 ``int`` 时视为 QQ 系统 face ID；
+      为 ``str`` 时原样传递（可能是 face ID 字符串或 unicode emoji，由协议端解释）。
+
+    注意：
+    - 这是 NapCat / LLOneBot 对 OneBot 11 的**扩展动作**，非标准；
+      OneBot 标准协议端可能不支持。
+    - OneBot 用 ``message_id`` 标识消息；Milky 用 ``message_seq``（命名不同），
+      本函数对 Milky 接收 ``message_id`` 参数但内部当 ``message_seq`` 使用。
+    """
+    if isinstance(bot, OneBotV11Bot):
+        await bot.call_api(
+            "set_msg_emoji_like",
+            message_id=int(message_id),
+            emoji_id=str(emoji),
+        )
+        return
+
+    milky_cls = _milky_bot_cls()
+    if milky_cls is not None and isinstance(bot, milky_cls):
+        # Milky 用 message_seq 标识消息，且区分 face / emoji 两种回应类型
+        reaction_type = "face" if isinstance(emoji, int) else "emoji"
+        await bot.call_api(
+            "send_group_message_reaction",
+            group_id=int(group_id),
+            message_seq=int(message_id),
+            reaction=str(emoji),
+            reaction_type=reaction_type,
+            is_add=True,
+        )
+        return
+
+    raise NotImplementedError(
+        f"react_to_message 暂不支持当前适配器："
+        f"{type(bot).__module__}.{type(bot).__qualname__}"
+    )
