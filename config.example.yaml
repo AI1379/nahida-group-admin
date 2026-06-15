@@ -1,0 +1,76 @@
+# ════════════════════════════════════════════════════════════
+#  Nahida Group Admin 配置示例
+#  复制为 config.yaml 后按需修改：  cp config.example.yaml config.yaml
+# ════════════════════════════════════════════════════════════
+
+# ── NoneBot 框架（启动时注入 nonebot.init）──
+# Driver 组合：~fastapi 反向 WS 服务端 / ~httpx HTTP 客户端 / ~websockets WS 客户端
+driver: "~fastapi+~httpx+~websockets"
+# 反向 WS / HTTP 监听地址（协议端连到这里）
+host: "127.0.0.1"
+port: 8080
+log_level: INFO
+# 命令前缀
+command_start: ["/"]
+# 超级用户（QQ 号字符串）
+superusers: []
+# OneBot V11 反向 WS：在协议端把上报地址设为 ws://<host>:<port>/onebot/v11/ws
+onebot_access_token: ""
+
+# ── 全局 ──
+# 群聊白名单：为空表示不限制、放行所有群；配置群号后才启用过滤
+group_whitelist: []
+
+# ── 自助派发头衔 ──
+title:
+  max_length: 6            # 头衔最大字符数
+  cooldown: 3600           # 修改冷却（秒），0 表示不限制
+  blacklist: []            # 禁止出现的子串，如 ["管理","群主"]
+
+# ── 自助禁言 ──
+mute:
+  mutable_titles: []       # 允许普通成员禁言的「目标头衔」，如 ["bot"]
+  max_duration_seconds: 600  # 普通成员单次禁言最长时长（秒），0 不限制
+  admin_bypass: true       # 管理员是否可无视「可禁言头衔」列表
+
+# ── 互动（戳一戳 + 关键词表情回应）──
+interaction:
+  poke_enabled: true       # 是否启用戳一戳互动（被戳时戳回去）
+  keyword_enabled: true    # 是否启用关键词互动
+  keywords:                # 匹配关键词时贴表情回应
+    - "在吗"
+    - "在不在"
+    - "你好"
+    - "hi"
+    - "hello"
+    - "晚安"
+    - "早安"
+    - "午安"
+    - "安"
+    - "早上好"
+    - "晚上好"
+    - "下午好"
+  reactions:               # 反应列表：字符串为 emoji，整数为 QQ face ID
+    - "😊"
+    - "😄"
+    - "🥰"
+    - "😎"
+    - "🤗"
+    - "✨"
+    - "💕"
+    - "🌟"
+    - "🎉"
+    - "😇"
+    - "🤭"
+    - "😜"
+    - "👻"
+    - "👋"
+    - "💖"
+
+# ── 陶片放逐 ──
+ostracism:
+  enabled: true
+  vote_emoji: "🏺"         # 投票表情（字符串为 emoji，整数为 QQ face ID）
+  votes_fixed: 5           # 固定票数阈值；-1 表示不考虑
+  votes_percent: -1        # 群成员百分比（1-100）；-1 表示不考虑
+  window_minutes: 30       # 投票有效时间（分钟）

@@ -5,15 +5,14 @@
 
 import re
 
-from nonebot import get_driver, get_plugin_config, logger, on_command
+from nonebot import get_driver, logger, on_command
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, MessageSegment
 from nonebot.adapters.onebot.v11.exception import ActionFailed
 from nonebot.params import CommandArg
 from nonebot.plugin import PluginMetadata
 
 from nahida_group_admin.compat import mute_group_member
-
-from .config import MuteConfig
+from nahida_group_admin.config import MuteConfig, get_config
 
 __plugin_meta__ = PluginMetadata(
     name="自助禁言 / Self-Service Mute",
@@ -31,7 +30,7 @@ __plugin_meta__ = PluginMetadata(
     config=MuteConfig,
 )
 
-config = get_plugin_config(MuteConfig)
+config = get_config().mute
 driver = get_driver()
 
 _DURATION_PATTERN = re.compile(r"(\d+)([smh])", re.IGNORECASE)

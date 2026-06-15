@@ -5,7 +5,7 @@
 
 import time
 
-from nonebot import get_driver, get_plugin_config, logger, on_command
+from nonebot import get_driver, logger, on_command
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, MessageSegment
 from nonebot.adapters.onebot.v11.exception import ActionFailed
 # At 段在 OneBot V11 中是 MessageSegment 类型为 'at'，CQ 码格式：[CQ:at,qq=xxx]
@@ -13,8 +13,7 @@ from nonebot.params import CommandArg
 from nonebot.plugin import PluginMetadata
 
 from nahida_group_admin.compat import set_special_title
-
-from .config import TitleConfig
+from nahida_group_admin.config import TitleConfig, get_config
 
 __plugin_meta__ = PluginMetadata(
     name="自助头衔 / Self-Service Title",
@@ -36,7 +35,7 @@ __plugin_meta__ = PluginMetadata(
     config=TitleConfig,
 )
 
-config = get_plugin_config(TitleConfig)
+config = get_config().title
 driver = get_driver()
 
 # 简单的内存级冷却记录：{(group_id, user_id): 上次设置的时间戳}
@@ -107,19 +106,19 @@ async def handle_title(
 
     # 仅在设置非空头衔时做内容校验
     if new_title:
-        if len(new_title) > config.title_max_length:
+        if len(new_title) > config.max_length:
             await title_cmd.finish(
-                f"头衔太长啦，最多 {config.title_max_length} 个字符～"
+                f"头衔太长啦，最多 {config.max_length} 个字符～"
             )
-        if any(w and w in new_title for w in config.title_blacklist):
+        if any(w and w in new_title for w in config.blacklist):
             await title_cmd.finish("这个头衔包含不被允许的内容，换一个吧～")
 
     # 冷却检查：仅对「设置自己」生效；管理员操作他人无冷却
     if not is_setting_others:
         now = time.time()
         last = _last_set.get((group_id, user_id))
-        if last is not None and config.title_cooldown > 0:
-            remaining = int(config.title_cooldown - (now - last))
+        if last is not None and config.cooldown > 0:
+            remaining = int(config.cooldown - (now - last))
             if remaining > 0:
                 await title_cmd.finish(f"操作太频繁啦，请 {remaining} 秒后再试～")
 

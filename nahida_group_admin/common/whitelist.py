@@ -5,22 +5,17 @@
 
 该模块只需被导入（``import nahida_group_admin.common.whitelist``）即注册全局钩子，
 对所有 matcher 类型（on_command / on_message / on_notice）与所有后端适配器生效。
+
+配置从集中式 ``config.yaml`` 的 ``group_whitelist`` 读取（见
+``nahida_group_admin.config``）。
 """
 
-from nonebot import get_plugin_config
 from nonebot.exception import IgnoredException
 from nonebot.message import event_preprocessor
-from pydantic import BaseModel, Field
 
+from nahida_group_admin.config import get_config
 
-class WhitelistConfig(BaseModel):
-    group_whitelist: list[int] = Field(
-        default_factory=list,
-        description="群聊白名单；为空表示不限制（放行所有群）。",
-    )
-
-
-config = get_plugin_config(WhitelistConfig)
+config = get_config()
 
 
 @event_preprocessor

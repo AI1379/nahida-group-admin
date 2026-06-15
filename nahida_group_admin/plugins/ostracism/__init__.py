@@ -9,7 +9,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, Set
 
-from nonebot import get_driver, get_plugin_config, logger, on_command
+from nonebot import get_driver, logger, on_command
 from nonebot.adapters.onebot.v11 import (
     Bot,
     GroupMessageEvent,
@@ -21,8 +21,7 @@ from nonebot.params import CommandArg
 from nonebot.plugin import PluginMetadata
 
 from nahida_group_admin.compat import mute_group_member
-
-from .config import OstracismConfig
+from nahida_group_admin.config import OstracismConfig, get_config
 
 __plugin_meta__ = PluginMetadata(
     name="陶片放逐 / Ostracism",
@@ -49,7 +48,7 @@ __plugin_meta__ = PluginMetadata(
     config=OstracismConfig,
 )
 
-config = get_plugin_config(OstracismConfig)
+config = get_config().ostracism
 driver = get_driver()
 
 

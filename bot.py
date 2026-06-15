@@ -1,15 +1,31 @@
 """Nahida Group Admin —— NoneBot2 启动入口。
 
-以 OneBot V11 为主适配器；若安装了 Milky 适配器（uv sync --extra milky）则一并注册，
-作为次要后端。运行： ``uv run python bot.py``
+配置统一从 ``config.yaml`` 加载（见 ``nahida_group_admin.config``），框架设置通过
+``nonebot.init(**...)`` 注入，插件配置通过模块单例 ``get_config()`` 访问。
+
+运行： ``uv run python bot.py``
 """
 
 import nonebot
 from nonebot.adapters.onebot.v11 import Adapter as OneBotV11Adapter
 
+from nahida_group_admin.config import load_config
+
 
 def main() -> None:
-    nonebot.init()
+    # 1. 加载并校验 YAML 配置（单一配置源）
+    cfg = load_config()
+
+    # 2. 框架设置注入 NoneBot
+    nonebot.init(
+        driver=cfg.driver,
+        host=cfg.host,
+        port=cfg.port,
+        log_level=cfg.log_level,
+        command_start=cfg.command_start,
+        superusers=cfg.superusers,
+        onebot_access_token=cfg.onebot_access_token,
+    )
 
     driver = nonebot.get_driver()
     driver.register_adapter(OneBotV11Adapter)

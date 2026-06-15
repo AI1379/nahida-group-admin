@@ -286,6 +286,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "nonebot-adapter-onebot" },
     { name = "nonebot2", extra = ["fastapi", "httpx", "websockets"] },
+    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
@@ -298,6 +299,7 @@ requires-dist = [
     { name = "nonebot-adapter-milky", marker = "extra == 'milky'", specifier = ">=1.2.0" },
     { name = "nonebot-adapter-onebot", specifier = ">=2.4.0" },
     { name = "nonebot2", extras = ["fastapi", "httpx", "websockets"], specifier = ">=2.3.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
 ]
 provides-extras = ["milky"]
 

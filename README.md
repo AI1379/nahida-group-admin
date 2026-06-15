@@ -81,9 +81,9 @@ uv sync --extra milky
 ### 配置
 
 ```bash
-# 从模板创建本地配置（.env 已被 .gitignore 忽略，不会提交）
-cp .env.example .env
-# 按需修改 .env，详见下方「配置」一节
+# 从模板创建本地配置（config.yaml 已被 .gitignore 忽略，不会提交）
+cp config.example.yaml config.yaml
+# 按需修改 config.yaml，详见下方「配置」一节
 ```
 
 ### 运行
@@ -100,48 +100,63 @@ uv run python bot.py
 ws://127.0.0.1:8080/onebot/v11/ws
 ```
 
-若协议端设置了 access token，请把相同的值填进 `.env` 的 `ONEBOT_ACCESS_TOKEN`。连接成功后，在群里发送 `/头衔 测试` 即可体验。
+若协议端设置了 access token，请把相同的值填进 `config.yaml` 的 `onebot_access_token`。连接成功后，在群里发送 `/头衔 测试` 即可体验。
 
 ---
 
 ## ⚙️ 配置
 
-配置遵循 NoneBot2 约定，写在项目根目录的 `.env` 文件中（完整带注释的模板见 [`.env.example`](.env.example)）。常用字段：
+配置统一写在项目根目录的 **`config.yaml`** 中（完整带注释的模板见 [`config.example.yaml`](config.example.yaml)），由 `nahida_group_admin/config.py` 用 pydantic 手工加载并校验——不使用 NoneBot 的 dotenv 机制，避免修改后不生效的问题。框架设置（driver/host/port 等）启动时注入 `nonebot.init()`，插件配置通过模块单例 `get_config()` 访问。
 
-```dotenv
-# 后端连接 Driver：~fastapi 提供反向 WS 服务端，~httpx/~websockets 提供客户端能力
-DRIVER=~fastapi+~httpx+~websockets
-HOST=127.0.0.1
-PORT=8080
+```yaml
+# ── NoneBot 框架（启动时注入）──
+driver: "~fastapi+~httpx+~websockets"
+host: "127.0.0.1"
+port: 8080
+log_level: INFO
+command_start: ["/"]
+superusers: []
+onebot_access_token: ""     # 协议端 access token（反向 WS：ws://<host>:<port>/onebot/v11/ws）
 
-# 命令前缀，例如 /头衔
-COMMAND_START=["/"]
-# 超级用户（后续入群审批等授权功能会用到），填 QQ 号字符串
-SUPERUSERS=[]
+# ── 全局 ──
+# 群聊白名单：为空表示不限制、放行所有群；配置群号后才启用过滤
+group_whitelist: []
 
-# 群聊白名单（全局）：为空表示不限制、放行所有群；
-# 配置群号后，只有列表中的群才会启用所有功能，其余群的所有命令/消息/通知一律忽略
-GROUP_WHITELIST=[]
+# ── 自助派发头衔 ──
+title:
+  max_length: 6            # 头衔最大字符数
+  cooldown: 3600           # 修改冷却（秒），0 表示不限制
+  blacklist: []            # 禁止出现的子串
 
-# OneBot 11 协议端的 access token（如已设置）
-ONEBOT_ACCESS_TOKEN=
+# ── 自助禁言 ──
+mute:
+  mutable_titles: []       # 允许普通成员禁言的「目标头衔」
+  max_duration_seconds: 600
+  admin_bypass: true
 
-# —— 自助头衔插件 ——
-# 头衔最大字符数
-TITLE_MAX_LENGTH=6
-# 修改冷却（秒），0 表示不限制
-TITLE_COOLDOWN=3600
-# 禁止出现在头衔中的子串，如 ["管理","群主"]
-TITLE_BLACKLIST=[]
+# ── 互动（戳一戳 + 关键词表情回应）──
+interaction:
+  poke_enabled: true
+  keyword_enabled: true
+  keywords: ["在吗", "你好", "晚安", ...]
+  reactions: ["😊", "😄", ...]   # 字符串为 emoji，整数为 QQ face ID
+
+# ── 陶片放逐 ──
+ostracism:
+  enabled: true
+  vote_emoji: "🏺"          # 投票表情（emoji 字符串或 QQ face ID）
+  votes_fixed: 5            # 固定票数；-1 表示不考虑
+  votes_percent: -1         # 群成员百分比；-1 表示不考虑
+  window_minutes: 30
 ```
 
-> 正向 WS（机器人主动连接协议端）等其它连接方式的字段，见 `.env.example` 中的说明。
+> 正向 WS（机器人主动连接协议端）等其它连接方式的字段，见 `config.example.yaml` 中的说明。
 
 ---
 
 ## 💬 命令一览
 
-> 命令前缀默认为 `/`（由 `.env` 的 `COMMAND_START` 配置）。
+> 命令前缀默认为 `/`（由 `config.yaml` 的 `command_start` 配置）。
 
 | 命令 | 功能 | 谁可以用 | 状态 |
 | --- | --- | --- | --- |
@@ -161,7 +176,7 @@ TITLE_BLACKLIST=[]
 ## 🗺️ 路线图
 
 - [x] 适配器门面：统一抽象后端的事件与动作（OneBot 11 就绪；Milky 进行中）
-- [x] 配置加载（NoneBot2 + `.env`）
+- [x] 配置加载（独立 `config.yaml` + pydantic 手工加载）
 - [x] 自助派发头衔
 - [x] 自助禁言（基于头衔 / 角色的规则）
 - [x] 戳一戳互动
@@ -183,8 +198,9 @@ uv run python bot.py
 ### 项目结构
 
 ```
-bot.py                           # 启动入口：init → 注册适配器 → 加载插件 → run
+bot.py                           # 启动入口：加载 config.yaml → init → 注册适配器 → 加载插件 → run
 nahida_group_admin/
+├── config.py                    # ⚙️ 集中式配置：pydantic 模型 + YAML 加载 + 单例
 ├── common/
 │   └── whitelist.py             # 🛡️ 全局群聊白名单（event_preprocessor）
 ├── compat/
@@ -194,7 +210,7 @@ nahida_group_admin/
     ├── mute/                    # 🔇 自助禁言
     ├── interaction/             # 👉 戳一戳 + 关键词互动
     └── ostracism/               # 🏺 陶片放逐
-.env.example                     # 配置模板
+config.example.yaml              # 配置模板
 ```
 
 ### 新增一个功能

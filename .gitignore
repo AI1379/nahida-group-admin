@@ -158,6 +158,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# 本地 YAML 配置（含连接 token 等，勿提交；模板见 config.example.yaml）
+config.yaml
+
 # SQLite / 运行时数据库（如 NapCat 的 *.db）
 *.db
 *.db-shm

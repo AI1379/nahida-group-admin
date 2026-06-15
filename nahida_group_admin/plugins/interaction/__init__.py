@@ -6,14 +6,13 @@
 
 import random
 
-from nonebot import get_plugin_config, on_notice, logger, on_message
+from nonebot import on_notice, logger, on_message
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, MessageEvent, MessageSegment
 from nonebot.adapters.onebot.v11.event import PokeNotifyEvent
 from nonebot.plugin import PluginMetadata
 
 from nahida_group_admin.compat import react_to_message
-
-from .config import InteractionConfig
+from nahida_group_admin.config import InteractionConfig, get_config
 
 __plugin_meta__ = PluginMetadata(
     name="互动 / Interaction",
@@ -27,7 +26,7 @@ __plugin_meta__ = PluginMetadata(
     config=InteractionConfig,
 )
 
-config = get_plugin_config(InteractionConfig)
+config = get_config().interaction
 
 # ── 戳一戳互动 ──
 
