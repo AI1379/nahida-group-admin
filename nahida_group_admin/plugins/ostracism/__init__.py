@@ -20,7 +20,7 @@ from nonebot.adapters.onebot.v11.exception import ActionFailed
 from nonebot.params import CommandArg
 from nonebot.plugin import PluginMetadata
 
-from nahida_group_admin.compat import mute_group_member
+from nahida_group_admin.compat import kick_group_member
 from nahida_group_admin.config import OstracismConfig, get_config
 
 __plugin_meta__ = PluginMetadata(
@@ -250,8 +250,8 @@ async def handle_reaction_vote(bot: Bot, event) -> None:  # noqa: ANN001 - NoneB
     if session.should_kick():
         _active_sessions.pop(message_id, None)
         try:
-            await bot.call_api(
-                "set_group_kick",
+            await kick_group_member(
+                bot,
                 group_id=session.group_id,
                 user_id=session.target_user_id,
                 reject_add_request=False,

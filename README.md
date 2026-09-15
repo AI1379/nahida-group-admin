@@ -7,10 +7,10 @@
 [![Built with NoneBot2](https://img.shields.io/badge/Built%20with-NoneBot2-ea5252.svg)](https://nonebot.dev/)
 [![Backend: OneBot 11 | Milky](https://img.shields.io/badge/Backend-OneBot%2011%20%7C%20Milky-green.svg)](#-支持的后端)
 
-**Nahida Group Admin** 把日常群管理中重复、繁琐的工作交给机器人：成员自助领取头衔、入群审批走群内投票、陶片放逐、自助禁言、戳一戳与命令文本互动等。它底层基于 [NoneBot2](https://nonebot.dev/) 构建，同时兼容 [OneBot 11](https://github.com/botuniverse/onebot-11) 与 [Milky](https://milky.ntqqrev.org/) 两套后端协议——通过一层适配器门面屏蔽二者差异，让你自由选择协议端实现而不必改动业务逻辑。
+**Nahida Group Admin** 把日常群管理中重复、繁琐的工作交给机器人：成员自助领取头衔、入群人机验证、入群审批走群内投票、陶片放逐、自助禁言、戳一戳与命令文本互动等。它底层基于 [NoneBot2](https://nonebot.dev/) 构建，同时兼容 [OneBot 11](https://github.com/botuniverse/onebot-11) 与 [Milky](https://milky.ntqqrev.org/) 两套后端协议——通过一层适配器门面屏蔽二者差异，让你自由选择协议端实现而不必改动业务逻辑。
 
 > [!NOTE]
-> 🚧 **项目状态：开发中。** 已基于 NoneBot2 搭好骨架，并完成 5 个功能（OneBot 11 后端已验证）：**自助派发头衔、自助禁言、戳一戳互动、关键词互动、陶片放逐**。仅剩入群审批待开发，下文标注 🚧 的部分为目标设计，配置项与命令格式可能调整。欢迎通过 Issue / PR 参与。
+> 🚧 **项目状态：开发中。** 已基于 NoneBot2 搭好骨架，并完成 6 个功能（OneBot 11 后端已验证）：**自助派发头衔、自助禁言、戳一戳互动、关键词互动、陶片放逐、入群人机验证**。仅剩入群审批待开发，下文标注 🚧 的部分为目标设计，配置项与命令格式可能调整。欢迎通过 Issue / PR 参与。
 
 ---
 
@@ -30,6 +30,9 @@
 
 - **🏺 陶片放逐（Ostracism）** ✅
   借鉴古雅典「陶片放逐制」的群内投票踢人机制：管理员发起后，bot 发送通知，成员对**通知消息贴表情回应**投票，达到阈值即自动踢出。票数阈值支持「固定票数」与「群成员百分比」双模式，取最小值（`-1` 表示不考虑该项）。
+
+- **🚪 入群人机验证** ✅
+  新成员入群后，机器人在群内 @ 他并随机出一道**加/减/乘法题**，要求在时限内直接回复答案：答对即通过，**超时或答错次数用尽自动踢出**，用于拦截批量刷广告的机器人。**验证通过后会自动撤回题目、答错提示与对方的回复**，群里不留验证痕迹（撤回失败只记日志，不影响验证结果）。管理员可用 `/验证 放行|踢出|重发 @某人` 人工干预，避免误伤真人。运算范围、答题时限、机会次数、是否验证受邀入群、是否撤回等均可配置。
 
 > [!NOTE]
 > 表情回应（`set_msg_emoji_like` / `send_group_message_reaction`）是 NapCat/LLOneBot 对 OneBot 11 的**扩展**，非协议标准；标准 OneBot 协议端可能不支持。陶片放逐的投票依赖协议端上报 `group_msg_emoji_like` 事件（NapCat 仅上报机器人**自己消息**上的回应，恰好匹配投票场景）。
@@ -148,6 +151,22 @@ ostracism:
   votes_fixed: 5            # 固定票数；-1 表示不考虑
   votes_percent: -1         # 群成员百分比；-1 表示不考虑
   window_minutes: 30
+
+# ── 入群人机验证 ──
+verification:
+  enabled: true             # 是否启用
+  timeout_seconds: 120      # 答题时限（秒），超时即判定失败
+  max_attempts: 3           # 最大答题次数，用尽即判定失败
+  operators: ["+", "-"]     # 出题运算符：+ - ×
+  number_min: 1             # 运算数下限（含）
+  number_max: 20            # 运算数上限（含）
+  verify_invite: true       # 被成员/管理员邀请入群时是否同样验证
+  kick_on_fail: true        # 超时/答错用尽是否自动踢出
+  reject_add_request: false # 踢出时是否拒绝其再次加群
+  require_bot_admin: true   # 机器人无管理员权限时跳过验证
+  recall_on_pass: true      # 验证通过后撤回题目 / 答错提示 / 对方的回复
+  recall_on_fail: false     # 超时或答错用尽（判定失败）时是否也一起撤回
+  welcome_message: "✅ 验证通过，欢迎加入本群～"
 ```
 
 > 正向 WS（机器人主动连接协议端）等其它连接方式的字段，见 `config.example.yaml` 中的说明。
@@ -164,6 +183,7 @@ ostracism:
 | `/头衔 @某人 <内容>` | 管理员设置某人的头衔 | 管理员 | ✅ 已实现 |
 | `/禁言 @某人 <时长>` | 在规则允许范围内自助禁言（支持 `5m`/`30s`/`1h`） | 视配置而定 | ✅ 已实现 |
 | `/放逐 @某人` 或 `/放逐 <QQ号>` | 发起陶片放逐投票（成员对通知贴表情回应投票） | 管理员 | ✅ 已实现 |
+| `/验证 放行\|踢出\|重发 @某人` | 放行 / 踢出 / 重新出题（入群人机验证） | 管理员 | ✅ 已实现 |
 | 戳一戳机器人 | 机器人戳回去 | 所有成员 | ✅ 已实现 |
 | 包含关键词的消息 | 对该消息贴表情回应 | 所有成员 | ✅ 已实现 |
 | 回复入群通知 `同意` / `拒绝` | 通过 / 拒绝入群申请 | 管理员 | 🚧 计划中 |
@@ -182,6 +202,7 @@ ostracism:
 - [x] 戳一戳互动
 - [x] 关键词互动（支持 Unicode emoji / QQ face ID）
 - [x] 陶片放逐投票（固定票数 / 百分比双模式）
+- [x] 入群人机验证（限时算术题 + 超时/答错自动踢人）
 - [ ] 入群审批（群内通知 + 管理员回复审批）
 - [ ] 完善 Milky 后端适配
 - [ ] 完善文档与部署示例
@@ -209,7 +230,8 @@ nahida_group_admin/
     ├── title/                   # 🎖️ 自助派发头衔
     ├── mute/                    # 🔇 自助禁言
     ├── interaction/             # 👉 戳一戳 + 关键词互动
-    └── ostracism/               # 🏺 陶片放逐
+    ├── ostracism/               # 🏺 陶片放逐
+    └── verification/            # 🚪 入群人机验证
 config.example.yaml              # 配置模板
 ```
 

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 # ── 各功能配置模型 ──
 
@@ -87,6 +87,89 @@ class OstracismConfig(BaseModel):
         return min(thresholds)
 
 
+# 运算符别名 → 规范符号（统一用 + - × 三种）
+_OPERATOR_ALIASES: dict[str, str] = {
+    "+": "+",
+    "＋": "+",
+    "add": "+",
+    "加": "+",
+    "-": "-",
+    "－": "-",
+    "sub": "-",
+    "减": "-",
+    "×": "×",
+    "*": "×",
+    "x": "×",
+    "X": "×",
+    "mul": "×",
+    "乘": "×",
+}
+
+
+class VerificationConfig(BaseModel):
+    """入群人机验证（加减法等简单算术题，未通过则踢出）。"""
+
+    enabled: bool = Field(default=True, description="是否启用入群人机验证。")
+    timeout_seconds: int = Field(default=120, description="答题时限（秒）。", ge=5)
+    max_attempts: int = Field(
+        default=3, description="最大答题次数，超出即判定失败。", ge=1
+    )
+    operators: list[str] = Field(
+        default_factory=lambda: ["+", "-"],
+        description="出题使用的运算符：+ - ×（也接受 add/sub/mul 等别名）。",
+    )
+    number_min: int = Field(default=1, description="运算数下限（含）。", ge=0)
+    number_max: int = Field(default=20, description="运算数上限（含）。", ge=1)
+    verify_invite: bool = Field(
+        default=True, description="被成员/管理员邀请入群时是否同样验证。"
+    )
+    kick_on_fail: bool = Field(
+        default=True, description="超时或答错次数用尽时是否自动踢出。"
+    )
+    reject_add_request: bool = Field(
+        default=False, description="踢出时是否同时拒绝其再次加群申请。"
+    )
+    require_bot_admin: bool = Field(
+        default=True, description="机器人无管理员权限时跳过验证（否则无法踢人）。"
+    )
+    recall_on_pass: bool = Field(
+        default=True, description="验证通过后撤回题目、答错提示与对方的回复。"
+    )
+    recall_on_fail: bool = Field(
+        default=False, description="超时/答错用尽（判定失败）时是否也撤回上述消息。"
+    )
+    welcome_message: str = Field(
+        default="✅ 验证通过，欢迎加入本群～",
+        description="验证通过后的群内提示，留空则不发送。",
+    )
+
+    @field_validator("operators", mode="before")
+    @classmethod
+    def _normalize_operators(cls, value: object) -> object:
+        """把运算符别名统一成 + - ×，并拒绝无法识别的写法。"""
+        if not isinstance(value, list):
+            return value
+        normalized: list[str] = []
+        for item in value:
+            symbol = _OPERATOR_ALIASES.get(str(item).strip())
+            if symbol is None:
+                raise ValueError(f"不支持的运算符 {item!r}，仅支持 + - ×（及 add/sub/mul 别名）。")
+            if symbol not in normalized:
+                normalized.append(symbol)
+        return normalized
+
+    @model_validator(mode="after")
+    def _check_config(self) -> "VerificationConfig":
+        """校验运算符非空与运算区间。"""
+        if not self.operators:
+            raise ValueError("operators 不能为空，至少配置一个运算符（+ - ×）。")
+        if self.number_min > self.number_max:
+            raise ValueError(
+                f"number_min({self.number_min}) 不能大于 number_max({self.number_max})。"
+            )
+        return self
+
+
 # ── 根配置 ──
 
 
@@ -112,6 +195,7 @@ class AppConfig(BaseModel):
     mute: MuteConfig = Field(default_factory=MuteConfig)
     interaction: InteractionConfig = Field(default_factory=InteractionConfig)
     ostracism: OstracismConfig = Field(default_factory=OstracismConfig)
+    verification: VerificationConfig = Field(default_factory=VerificationConfig)
 
 
 # ── 加载与单例 ──

@@ -74,3 +74,21 @@ ostracism:
   votes_fixed: 5           # 固定票数阈值；-1 表示不考虑
   votes_percent: -1        # 群成员百分比（1-100）；-1 表示不考虑
   window_minutes: 30       # 投票有效时间（分钟）
+
+# ── 入群人机验证 ──
+# 新成员入群后需限时回答一道算术题，超时/答错次数用尽则自动踢出，用于拦截广告机器人。
+# 需要机器人在群内是管理员或群主，否则无法踢人。
+verification:
+  enabled: true            # 是否启用入群人机验证
+  timeout_seconds: 120     # 答题时限（秒），超时即判定失败
+  max_attempts: 3          # 最大答题次数，用尽即判定失败
+  operators: ["+", "-"]    # 出题运算符：+ - ×（也接受 add/sub/mul 别名）
+  number_min: 1            # 运算数下限（含）
+  number_max: 20           # 运算数上限（含）
+  verify_invite: true      # 被成员/管理员邀请入群时是否同样验证
+  kick_on_fail: true       # 超时或答错用尽时是否自动踢出（false 则只提示，交管理员处理）
+  reject_add_request: false  # 踢出时是否同时拒绝其再次加群申请
+  require_bot_admin: true  # 机器人无管理员权限时跳过验证（否则无法踢人）
+  recall_on_pass: true     # 验证通过后撤回题目 / 答错提示 / 对方的回复
+  recall_on_fail: false    # 超时或答错用尽时是否也一起撤回
+  welcome_message: "✅ 验证通过，欢迎加入本群～"  # 通过后的群内提示，留空则不发送
