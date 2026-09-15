@@ -110,6 +110,10 @@ class VerificationConfig(BaseModel):
     """入群人机验证（加减法等简单算术题，未通过则踢出）。"""
 
     enabled: bool = Field(default=True, description="是否启用入群人机验证。")
+    group_whitelist: list[int] = Field(
+        default_factory=list,
+        description="启用入群人机验证的群号白名单；为空表示所有群都启用。",
+    )
     timeout_seconds: int = Field(default=120, description="答题时限（秒）。", ge=5)
     max_attempts: int = Field(
         default=3, description="最大答题次数，超出即判定失败。", ge=1
@@ -142,6 +146,14 @@ class VerificationConfig(BaseModel):
         default="✅ 验证通过，欢迎加入本群～",
         description="验证通过后的群内提示，留空则不发送。",
     )
+
+    def is_group_enabled(self, group_id: int) -> bool:
+        """判断某个群是否启用入群验证：白名单为空表示所有群都启用。
+
+        注意与全局 ``group_whitelist``（过滤所有功能的全部事件）的区别：
+        本字段只决定「哪些群会触发入群验证」，不影响其它功能。
+        """
+        return not self.group_whitelist or int(group_id) in self.group_whitelist
 
     @field_validator("operators", mode="before")
     @classmethod

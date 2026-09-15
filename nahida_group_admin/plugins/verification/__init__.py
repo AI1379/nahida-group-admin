@@ -12,6 +12,9 @@
 加减法还能避免粘贴关键词/复制长文绕过（答案随机且必须算对）。
 
 状态保存在内存中（与项目其它功能一致），进程重启后未完成的验证会丢失。
+
+启用范围由 ``verification.group_whitelist`` 决定：为空时所有群都启用，
+配置群号后只在这些群里出题（与顶部全局 ``group_whitelist`` 不同，后者会过滤所有功能的事件）。
 """
 
 from __future__ import annotations
@@ -61,6 +64,7 @@ __plugin_meta__ = PluginMetadata(
 
 配置 / Config（config.yaml 的 verification 节）:
   verification.enabled          — 是否启用
+  verification.group_whitelist  — 启用验证的群号白名单（为空 = 所有群）
   verification.timeout_seconds  — 答题时限（秒）
   verification.max_attempts     — 最大答题次数
   verification.operators        — 出题运算符（+ - ×）
@@ -327,6 +331,11 @@ async def handle_group_increase(bot: Bot, event: GroupIncreaseNoticeEvent) -> No
     if not config.enabled:
         return
 
+    # 群白名单：只决定「哪些群会自动出题」；已开始的验证不受影响（否则会把成员卡死）
+    if not config.is_group_enabled(event.group_id):
+        logger.debug(f"群 {event.group_id} 未启用入群人机验证，跳过验证。")
+        return
+
     if str(event.user_id) == str(bot.self_id):
         return  # 机器人自己加入群聊，无需验证
 
@@ -478,6 +487,11 @@ async def handle_verify(
         return
 
     if action in _RESET_KEYWORDS:
+        if not config.is_group_enabled(event.group_id):
+            await verify_cmd.finish(
+                "本群未启用入群人机验证，如需启用请把群号加入 config.yaml 的 "
+                "verification.group_whitelist～"
+            )
         await _start(bot, event.group_id, target_user_id)
         await verify_cmd.finish(
             Message(f"已为 {MessageSegment.at(target_user_id)} 重新出题～")

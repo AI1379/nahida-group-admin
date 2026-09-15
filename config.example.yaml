@@ -78,8 +78,10 @@ ostracism:
 # ── 入群人机验证 ──
 # 新成员入群后需限时回答一道算术题，超时/答错次数用尽则自动踢出，用于拦截广告机器人。
 # 需要机器人在群内是管理员或群主，否则无法踢人。
+# 启用哪些群由下方的 verification.group_whitelist 控制（与顶部全局 group_whitelist 是两回事）。
 verification:
   enabled: true            # 是否启用入群人机验证
+  group_whitelist: []      # 启用验证的群号白名单；为空 = 所有群都启用，如 [123456, 789012]
   timeout_seconds: 120     # 答题时限（秒），超时即判定失败
   max_attempts: 3          # 最大答题次数，用尽即判定失败
   operators: ["+", "-"]    # 出题运算符：+ - ×（也接受 add/sub/mul 别名）
